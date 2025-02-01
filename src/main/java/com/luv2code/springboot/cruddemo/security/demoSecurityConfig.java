@@ -5,32 +5,55 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
+import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+
+import javax.sql.DataSource;
 
 @Configuration
 public class demoSecurityConfig {
+
+
     @Bean
-    public InMemoryUserDetailsManager inMemoryUserDetailsManager(){
-        UserDetails mary = User.builder().roles("EMPLOYEE")
-                .username("mary")
-                .password("{noop}mary123")
-                .build();
+    public UserDetailsManager userDetailsManager(DataSource dataSource) {
 
-        UserDetails susan = User.builder().roles("EMPLOYEE", "MANAGER")
-                .username("susan")
-                .password("{noop}susan123")
-                .build();
+        JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
 
-        UserDetails john = User.builder().roles("EMPLOYEE", "ADMIN")
-                .username("john")
-                .password("{noop}john123")
-                .build();
+        // define query to retrieve a user by username
+        jdbcUserDetailsManager.setUsersByUsernameQuery(
+                "select user_id, pw, active from members where user_id=?");
 
-        return new InMemoryUserDetailsManager(john, mary, susan);
+        // define query to retrieve the authorities/roles by username
+        jdbcUserDetailsManager.setAuthoritiesByUsernameQuery(
+                "select user_id, `role` from roles where user_id=?");
+
+        return jdbcUserDetailsManager;
     }
+
+//    @Bean
+//    public InMemoryUserDetailsManager inMemoryUserDetailsManager(){
+//        UserDetails mary = User.builder().roles("EMPLOYEE")
+//                .username("mary")
+//                .password("{noop}mary123")
+//                .build();
+//
+//        UserDetails susan = User.builder().roles("EMPLOYEE", "MANAGER")
+//                .username("susan")
+//                .password("{noop}susan123")
+//                .build();
+//
+//        UserDetails john = User.builder().roles("EMPLOYEE", "ADMIN")
+//                .username("john")
+//                .password("{noop}john123")
+//                .build();
+//
+//        return new InMemoryUserDetailsManager(john, mary, susan);
+//    }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -49,7 +72,7 @@ public class demoSecurityConfig {
 
         // disable Cross Site Request Forgery (CSRF)
         // in general, not required for stateless REST APIs that use POST, PUT, DELETE and/or PATCH
-        http.csrf(csrf -> csrf.disable());
+        http.csrf(AbstractHttpConfigurer::disable);
 
         return http.build();
     }
